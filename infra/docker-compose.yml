@@ -1,0 +1,59 @@
+services:
+  db:
+    image: postgres:15
+    container_name: autoblog-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: bloguser
+      POSTGRES_PASSWORD: blogpassword
+      POSTGRES_DB: autoblog
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - autoblog-network
+
+  backend:
+    build:
+      context: ../backend
+    container_name: autoblog-backend
+    env_file:
+      - ../backend/.env
+    restart: unless-stopped
+    environment:
+      PORT: 5000
+    depends_on:
+      - db
+    ports:
+      - "5000:5000"
+    dns:
+      - 8.8.8.8
+      - 8.8.4.4
+    networks:
+      - autoblog-network
+    command: ["sh", "./wait-for.sh", "db", "npm", "run", "dev"]
+
+  frontend:
+    build:
+      context: ../frontend
+    container_name: autoblog-frontend
+    restart: unless-stopped
+    depends_on:
+      - backend
+    ports:
+      - "5173:80"        # maps host 5173 → container 80
+    environment:
+      REACT_APP_API_BASE: "http://backend:5000"  # frontend can reach backend via Docker network
+    networks:
+      - autoblog-network
+
+volumes:
+  postgres_data:
+
+networks:
+  autoblog-network:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.25.0.0/16

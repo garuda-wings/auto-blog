@@ -1,0 +1,20 @@
+FROM node:20-alpine AS build
+
+# Install Postgres client for pg_isready
+RUN apk add --no-cache postgresql-client bash curl
+
+WORKDIR /usr/src/app
+
+# Copy package.json and install deps
+COPY package*.json ./
+RUN npm install
+
+# Copy source code including wait-for.sh
+COPY . .
+
+# Make wait-for.sh executable
+RUN chmod +x wait-for.sh
+
+EXPOSE 5000
+
+CMD ["npm", "run", "dev"]
