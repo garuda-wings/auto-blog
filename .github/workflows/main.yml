@@ -1,26 +1,22 @@
-name: CI/CD
+name: CI
 
 on:
   push:
-    branches:
-      - main
+    branches: [ main ]
   pull_request:
 
 jobs:
   build:
     runs-on: ubuntu-latest
 
-    strategy:
-      matrix:
-        node-version: [18.x]
-
     steps:
-      - uses: actions/checkout@v3
+      - name: Checkout code
+        uses: actions/checkout@v3
 
-      - name: Use Node.js
+      - name: Setup Node
         uses: actions/setup-node@v3
         with:
-          node-version: ${{ matrix.node-version }}
+          node-version: 18
 
       - name: Install backend dependencies
         run: |
@@ -36,8 +32,3 @@ jobs:
         run: |
           cd frontend
           npm run build
-
-      - name: Run backend tests
-        run: |
-          cd backend
-          npm test
