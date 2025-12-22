@@ -2,6 +2,9 @@ const express = require('express');
 const router = express.Router();
 const Article = require('../models/articleModel');
 const { generateArticle } = require('../services/aiClient');
+const { aiGenerationLimiter } = require("../middleware/rateLimit")
+const adminAuth = require("../middleware/adminAuth");
+
 
 router.get("/", async (req, res) => {
   try {
@@ -42,20 +45,66 @@ router.get('/:id', async (req, res) => {
 });
 
 // POST /articles/gen - generate a new article via AI and save
-router.post('/gen', async (req, res) => {
-  try {
-    const articleData = await generateArticle();
-    if (!articleData) {
-      return res.status(500).json({ error: "AI generation failed" });
-    }
+// router.post("/gen", aiGenerationLimiter,async (req, res) => {
+//   try {
+//     const articleData = await generateArticle();
 
-    // Save generated article to DB
-    const savedArticle = await Article.createArticle(articleData.title, articleData.content);
-    res.json(savedArticle);
-  } catch (err) {
-    console.error("AI generation endpoint error:", err);
-    res.status(500).json({ error: "AI generation failed" });
+//     // AI failed
+//     if (!articleData) {
+//       return res.status(500).json({ error: "AI generation failed" });
+//     }
+
+//     const { title, content } = articleData;
+
+//     // Invalid article
+//     if (!title?.trim() || !content?.trim()) {
+//       return res
+//         .status(400)
+//         .json({ error: "Invalid article data generated" });
+//     }
+
+//     const savedArticle = await Article.createArticle(
+//       title.trim(),
+//       content.trim()
+//     );
+
+//     res.status(200).json(savedArticle);
+//   } catch (err) {
+//     console.error("AI generation endpoint error:", err);
+//     res.status(500).json({ error: "AI generation failed" });
+//   }
+// });
+router.post(
+  "/gen",
+  adminAuth,
+  aiGenerationLimiter,
+  async (req, res) => {
+    try {
+      const articleData = await generateArticle();
+
+      if (
+        !articleData ||
+        !articleData.title ||
+        !articleData.title.trim() ||
+        !articleData.content ||
+        !articleData.content.trim()
+      ) {
+        return res
+          .status(400)
+          .json({ error: "Invalid article data generated" });
+      }
+
+      const savedArticle = await Article.createArticle(
+        articleData.title.trim(),
+        articleData.content.trim()
+      );
+
+      res.json(savedArticle);
+    } catch (err) {
+      console.error("AI generation endpoint error:", err);
+      res.status(500).json({ error: "AI generation failed" });
+    }
   }
-});
+);
 
 module.exports = router;

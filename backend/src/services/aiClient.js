@@ -1,12 +1,11 @@
-// const fetch = require("node-fetch");
-
 const OPENROUTER_API_KEY = process.env.OPENROUTER_API_KEY;
 const BLOG_TOPIC = process.env.BLOG_TOPIC || "Personal Finance";
 const BLOG_MIN_WORDS = process.env.BLOG_MIN_WORDS || 800;
 const BLOG_MAX_WORDS = process.env.BLOG_MAX_WORDS || 1200;
 
-if (!OPENROUTER_API_KEY) {
-    console.error("Missing OPENROUTER_API_KEY in environment variables.");
+
+if (!OPENROUTER_API_KEY && process.env.NODE_ENV !== "test") {
+    console.log("Missing OPENROUTER_API_KEY in environment variables.")
 }
 
 // Helper functions
@@ -44,10 +43,10 @@ async function generateArticle() {
                     Do NOT use markdown, labels, or formatting symbols.
                     Do NOT include the words "Title:" or "Content:".
                     `
-                                        },
-                                        {
-                                            role: "user",
-                                            content: `
+                    },
+                    {
+                        role: "user",
+                        content: `
                     Write a long-form blog article about ${BLOG_TOPIC}.
 
                     Requirements:
