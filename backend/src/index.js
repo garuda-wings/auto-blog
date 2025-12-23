@@ -8,10 +8,12 @@ if (require.main === module) {
     console.log(`Server running on http://localhost:${PORT}`);
   });
 
-  try {
-    scheduleDailyArticle();
-    console.log("Daily article scheduler started");
-  } catch (err) {
-    console.error("Failed to start daily article scheduler:", err);
+  if (process.env.NODE_ENV !== "test") {
+    try {
+      scheduleDailyArticle();
+      console.log("Daily article scheduler started");
+    } catch (err) {
+      console.error("Failed to start daily article scheduler:", err);
+    }
   }
 }
