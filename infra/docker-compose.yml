@@ -44,7 +44,8 @@ services:
     ports:
       - "5173:80"        # maps host 5173 → container 80
     environment:
-      REACT_APP_API_BASE: "http://backend:5000"  # frontend can reach backend via Docker network
+      #REACT_APP_API_BASE: "http://backend:5000"  # frontend can reach backend via Docker network
+      REACT_APP_API_BASE: "http://51.20.10.124:5000"
     networks:
       - autoblog-network
 
