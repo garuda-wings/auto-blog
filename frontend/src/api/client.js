@@ -15,7 +15,8 @@ export async function getArticles({ page, limit, search }) {
     search,
   });
 
-  const res = await fetch(`http://localhost:5000/articles?${params}`);
+  //const res = await fetch(`http://localhost:5000/articles?${params}`);
+  const res = await fetch(`${API_BASE}/articles?${params}`);
   if (!res.ok) throw new Error("Failed to fetch articles");
   return res.json();
 }
