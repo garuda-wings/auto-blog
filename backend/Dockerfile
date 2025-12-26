@@ -17,4 +17,5 @@ RUN chmod +x wait-for.sh
 
 EXPOSE 5000
 
-CMD ["npm", "run", "dev"]
+# CMD ["npm", "run", "dev"]
+CMD ["node", "src/index.js"]
