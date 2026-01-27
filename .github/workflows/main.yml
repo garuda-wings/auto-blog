@@ -1,5 +1,9 @@
 name: CI
 
+permissions: 
+  contents: read
+  packages: write
+
 on:
   push:
     branches: [ main ]
@@ -15,26 +19,27 @@ jobs:
       OPENROUTER_API_KEY: test-key-not-used
 
     steps:
+      # 1. Checkout repository 
       - name: Checkout code
         uses: actions/checkout@v3
-
+      # 2. Setup Node 
       - name: Setup Node
         uses: actions/setup-node@v3
         with:
           node-version: 18
 
-      # Backend
+      # 3. Backend: Install dependecies
       - name: Install backend dependencies
         run: |
           cd backend
-          npm install
+          npm ci
 
       - name: Run backend tests
         run: |
           cd backend
           npm test
 
-      # Frontend
+      # 4. Frontend: Install dependencies
       - name: Install frontend dependencies
         run: |
           cd frontend
@@ -44,3 +49,65 @@ jobs:
         run: |
           cd frontend
           npm run build
+
+      # 5. Authenticate to GitHub Container Registry (GHCR)
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      # 6. Define Docker image tag (short commit SHA)
+      - name: Set image tag
+        run: |
+          echo "IMAGE_TAG=${GITHUB_SHA::7}" >> $GITHUB_ENV
+
+      # 7. Build & push backend Docker image
+      - name: Build and push backend image
+        run: |
+          docker build \
+            -f backend/Dockerfile.prod \
+            -t ghcr.io/garuda-wings/auto-blog-backend:${IMAGE_TAG} \
+            -t ghcr.io/garuda-wings/auto-blog-backend:latest \
+            backend
+
+          docker push ghcr.io/garuda-wings/auto-blog-backend:${IMAGE_TAG}
+          docker push ghcr.io/garuda-wings/auto-blog-backend:latest
+
+      # 8. Build & push frontend Docker image
+      - name: Build and push frontend image
+        run: |
+          docker build \
+            -t ghcr.io/garuda-wings/auto-blog-frontend:${IMAGE_TAG} \
+            -t ghcr.io/garuda-wings/auto-blog-frontend:latest \
+            frontend
+
+          docker push ghcr.io/garuda-wings/auto-blog-frontend:${IMAGE_TAG}
+          docker push ghcr.io/garuda-wings/auto-blog-frontend:latest
+  
+  # =========================================================
+  # JOB 2 — DEPLOY (CD)
+  # =========================================================
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+
+    #Only deploy on main branch
+    if: github.ref == 'refs/heads/main'
+
+    steps:
+      - name: Deply to server via SSH
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.DEPLOY_HOST }}
+          username: ${{ secrets.DEPLOY_USER }}
+          key: ${{ secrets.DEPLOY_SSH_KEY }}
+          script: |
+            cd ~/auto-blog/infra
+
+            export BACKEND_IMAGE_TAG=${GITHUB_SHA::7}
+            export FRONTEND_IMAGE_TAG=${GITHUB_SHA::7}
+
+            docker compose -f docker-compose.prod.yml pull
+            docker compose -f docker-compose.prod.yml up -d

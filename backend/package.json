@@ -5,8 +5,9 @@
   "main": "src/index.js",
   "scripts": {
     "start": "node src/index.js",
-    "dev": "nodemon src/index.js",
-    "test": "NODE_ENV=test jest --runInBand"
+    "dev": "node --max-old-space-size=256 ./node_modules/.bin/nodemon src/index.js",
+    "test": "NODE_ENV=test jest --runInBand",
+    "init:db": "node src/models/initDb.js"
   },
   "keywords": [],
   "author": "",

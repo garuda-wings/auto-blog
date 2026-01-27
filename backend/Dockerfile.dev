@@ -17,5 +17,7 @@ RUN chmod +x wait-for.sh
 
 EXPOSE 5000
 
-# CMD ["npm", "run", "dev"]
-CMD ["node", "src/index.js"]
+HEALTHCHECK --interval=30s --timeout=5s --start-period=20s --retries=3 \
+  CMD curl -f http://localhost:5000/health || exit 1
+
+CMD ["npm", "run", "dev"]
