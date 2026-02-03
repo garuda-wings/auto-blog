@@ -1,6 +1,6 @@
-name: CI
+name: CI-CD
 
-permissions: 
+permissions:
   contents: read
   packages: write
 
@@ -10,8 +10,14 @@ on:
   pull_request:
 
 jobs:
+  # =========================================================
+  # JOB 1 — BUILD & PUSH IMAGES
+  # =========================================================
   build:
     runs-on: ubuntu-latest
+
+    outputs:
+      IMAGE_TAG: ${{ steps.set-image-tag.outputs.image_tag }}
 
     env:
       NODE_ENV: test
@@ -19,16 +25,17 @@ jobs:
       OPENROUTER_API_KEY: test-key-not-used
 
     steps:
-      # 1. Checkout repository 
+      # 1. Checkout
       - name: Checkout code
         uses: actions/checkout@v3
-      # 2. Setup Node 
+
+      # 2. Node
       - name: Setup Node
         uses: actions/setup-node@v3
         with:
           node-version: 18
 
-      # 3. Backend: Install dependecies
+      # 3. Backend
       - name: Install backend dependencies
         run: |
           cd backend
@@ -39,7 +46,7 @@ jobs:
           cd backend
           npm test
 
-      # 4. Frontend: Install dependencies
+      # 4. Frontend
       - name: Install frontend dependencies
         run: |
           cd frontend
@@ -50,7 +57,7 @@ jobs:
           cd frontend
           npm run build
 
-      # 5. Authenticate to GitHub Container Registry (GHCR)
+      # 5. Login GHCR
       - name: Log in to GitHub Container Registry
         uses: docker/login-action@v3
         with:
@@ -58,56 +65,61 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      # 6. Define Docker image tag (short commit SHA)
+      # 6. Define IMAGE_TAG (ENV + OUTPUT)
       - name: Set image tag
+        id: set-image-tag
         run: |
-          echo "IMAGE_TAG=${GITHUB_SHA::7}" >> $GITHUB_ENV
+          TAG=${GITHUB_SHA::7}
+          echo "IMAGE_TAG=$TAG" >> $GITHUB_ENV
+          echo "image_tag=$TAG" >> $GITHUB_OUTPUT
 
-      # 7. Build & push backend Docker image
+      # 7. Build & push backend
       - name: Build and push backend image
         run: |
           docker build \
             -f backend/Dockerfile.prod \
-            -t ghcr.io/garuda-wings/auto-blog-backend:${IMAGE_TAG} \
+            -t ghcr.io/garuda-wings/auto-blog-backend:$IMAGE_TAG \
             -t ghcr.io/garuda-wings/auto-blog-backend:latest \
             backend
 
-          docker push ghcr.io/garuda-wings/auto-blog-backend:${IMAGE_TAG}
+          docker push ghcr.io/garuda-wings/auto-blog-backend:$IMAGE_TAG
           docker push ghcr.io/garuda-wings/auto-blog-backend:latest
 
-      # 8. Build & push frontend Docker image
+      # 8. Build & push frontend
       - name: Build and push frontend image
         run: |
           docker build \
-            -t ghcr.io/garuda-wings/auto-blog-frontend:${IMAGE_TAG} \
+            -t ghcr.io/garuda-wings/auto-blog-frontend:$IMAGE_TAG \
             -t ghcr.io/garuda-wings/auto-blog-frontend:latest \
             frontend
 
-          docker push ghcr.io/garuda-wings/auto-blog-frontend:${IMAGE_TAG}
+          docker push ghcr.io/garuda-wings/auto-blog-frontend:$IMAGE_TAG
           docker push ghcr.io/garuda-wings/auto-blog-frontend:latest
-  
+
   # =========================================================
-  # JOB 2 — DEPLOY (CD)
+  # JOB 2 — DEPLOY TO EC2
   # =========================================================
   deploy:
     needs: build
     runs-on: ubuntu-latest
-
-    #Only deploy on main branch
     if: github.ref == 'refs/heads/main'
 
+    env:
+      BACKEND_IMAGE_TAG: ${{ needs.build.outputs.IMAGE_TAG }}
+      FRONTEND_IMAGE_TAG: ${{ needs.build.outputs.IMAGE_TAG }}
+
     steps:
-      - name: Deply to server via SSH
+      - name: Deploy to EC2 via SSH
         uses: appleboy/ssh-action@v1.0.3
         with:
-          host: ${{ secrets.EC2_HOST  }}
+          host: ${{ secrets.EC2_HOST }}
           username: ${{ secrets.EC2_USER }}
           key: ${{ secrets.EC2_SSH_KEY }}
           script: |
             cd ~/auto-blog/infra
 
-            export BACKEND_IMAGE_TAG=${GITHUB_SHA::7}
-            export FRONTEND_IMAGE_TAG=${GITHUB_SHA::7}
+            echo "Deploying backend:$BACKEND_IMAGE_TAG"
+            echo "Deploying frontend:$FRONTEND_IMAGE_TAG"
 
             docker compose -f docker-compose.prod.yml pull
             docker compose -f docker-compose.prod.yml up -d

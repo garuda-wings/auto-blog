@@ -2,7 +2,7 @@ const cron = require("node-cron");
 const { generateArticle } = require("./aiClient");
 const Article = require("../models/articleModel");
 
-// Run every day at 8:00 AM server time
+// Run every day at 22:00 PM server time
 const CRON_SCHEDULE = "0 22 * * *";
 
 function scheduleDailyArticle() {
