@@ -8,7 +8,12 @@ const app = express();
 
 app.use(
   cors({
-    origin: ["http://localhost:5173", "http://localhost:8080"],
+    origin: [
+      "http://localhost:5173", 
+      "http://localhost:8080",
+      "http://localhost",
+      "http://98.93.67.19"
+    ],
     methods: ["GET", "POST", "PUT", "DELETE"],
   })
 );
