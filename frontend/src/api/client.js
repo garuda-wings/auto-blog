@@ -3,7 +3,7 @@ import axios from "axios";
 const API_BASE =
   import.meta.env.DEV
     ? "http://localhost:5000"
-    : "http://98.93.67.19";
+    : "/api";
 
 // export const getArticles = () =>
 //   axios.get(`${API_BASE}/articles`).then((res) => res.data);
